@@ -34,9 +34,17 @@ let client;
 let qrCodeData = null;
 let connectionStatus = 'disconnected';
 let clientUser = null;
+let isInitializing = false; // LOCK to prevent double-init
 
-const initializeClient = () => {
+const initializeClient = async () => {
+    if (isInitializing) {
+        console.log('⚠️ Already initializing, skipping duplicate request...');
+        return;
+    }
+
+    isInitializing = true;
     console.log('Initializing WhatsApp Client...');
+
     try {
         client = new Client({
             authStrategy: new LocalAuth(),
@@ -50,15 +58,11 @@ const initializeClient = () => {
                     '--disable-accelerated-2d-canvas',
                     '--no-first-run',
                     '--no-zygote',
+                    '--single-process', // Helps on Render
                     '--disable-extensions'
                 ],
-                headless: true, // Headless MUST be true for server deployment
+                headless: true,
                 timeout: 0,
-                protocolTimeout: 0
-            },
-            webVersionCache: {
-                type: 'remote',
-                remotePath: 'https://raw.githubusercontent.com/wppconnect-team/wa-version/main/html/2.2412.54.html',
             }
         });
 
@@ -79,6 +83,7 @@ const initializeClient = () => {
             connectionStatus = 'connected';
             clientUser = client.info.wid.user;
             io.emit('ready', clientUser);
+            isInitializing = false; // Release lock
         });
 
         client.on('authenticated', () => {
@@ -91,6 +96,7 @@ const initializeClient = () => {
             console.error('AUTHENTICATION FAILURE', msg);
             connectionStatus = 'auth_failed';
             io.emit('auth_failure', msg);
+            isInitializing = false; // Release lock
         });
 
         client.on('disconnected', (reason) => {
@@ -99,15 +105,16 @@ const initializeClient = () => {
             qrCodeData = null;
             clientUser = null;
             io.emit('disconnected');
+            // Don't auto-reinit immediately to avoid loops
+            isInitializing = false;
         });
 
-        client.initialize().catch(err => {
-            console.error('Client initialization error:', err);
-            connectionStatus = 'disconnected';
-        });
+        await client.initialize();
 
     } catch (e) {
         console.error('Failed to setup client:', e);
+        connectionStatus = 'disconnected';
+        isInitializing = false; // Release lock
     }
 };
 
