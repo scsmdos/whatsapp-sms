@@ -115,7 +115,7 @@ const Messages = () => {
     const fetchChats = async () => {
         setLoading(true);
         try {
-            const response = await axios.get('/api/whatsapp/chats');
+            const response = await axios.get('whatsapp/chats');
             if (response.data && Array.isArray(response.data.chats)) {
                 setChats(response.data.chats);
             } else if (Array.isArray(response.data)) {
@@ -179,7 +179,7 @@ const Messages = () => {
             };
             setMessages(prev => [...prev, tempMsg]);
 
-            await axios.post('/api/whatsapp/send', {
+            await axios.post('whatsapp/send', {
                 to: selectedChat.id.replace('@c.us', ''),
                 message: finalMessage
             });

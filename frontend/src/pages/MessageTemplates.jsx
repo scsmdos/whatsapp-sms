@@ -18,7 +18,7 @@ const MessageTemplates = () => {
     const fetchTemplates = async (isInitial = false) => {
         if (isInitial) setLoading(true);
         try {
-            const response = await axios.get('/api/templates');
+            const response = await axios.get('templates');
             setTemplates(response.data);
         } catch (error) {
             console.error("Error fetching templates:", error);
@@ -45,7 +45,7 @@ const MessageTemplates = () => {
             if (editingId) {
                 await axios.put(`/api/templates/${editingId}`, formData);
             } else {
-                await axios.post('/api/templates', formData);
+                await axios.post('templates', formData);
             }
             await fetchTemplates();
             setIsModalOpen(false);

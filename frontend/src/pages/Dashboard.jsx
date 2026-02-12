@@ -47,8 +47,8 @@ const Dashboard = () => {
         const fetchDashboardData = async () => {
             try {
                 const [statsRes, chartRes] = await Promise.all([
-                    axios.get('/api/dashboard/stats'), // Assumes route exists
-                    axios.get('/api/dashboard/chart-data') // Assumes route exists
+                    axios.get('dashboard/stats'), // Assumes route exists
+                    axios.get('dashboard/chart-data') // Assumes route exists
                 ]);
 
                 setStats(statsRes.data);

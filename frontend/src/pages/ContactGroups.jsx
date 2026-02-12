@@ -26,7 +26,7 @@ const ContactGroups = () => {
 
     const fetchGroups = async () => {
         try {
-            const { data } = await axios.get('/api/contacts');
+            const { data } = await axios.get('contacts');
             const groupCounts = {};
 
             // Calculate counts

@@ -16,13 +16,22 @@ class AuthController extends Controller
             'password' => 'required',
         ]);
 
-        $user = User::where('email', $request->email)->first();
+        $user = User::where('email', trim($request->email))->first();
 
-        if (! $user || ! Hash::check($request->password, $user->password)) {
+        if (! $user) {
             return response()->json([
-                'message' => 'The provided credentials do not match our records.',
+                'message' => 'User account not found with this email.',
             ], 401);
         }
+
+        if (! Hash::check($request->password, $user->password)) {
+            return response()->json([
+                'message' => 'Password verification failed. Please check your password.',
+            ], 401);
+        }
+
+        // Delete old tokens to prevent clutter
+        $user->tokens()->delete();
 
         $token = $user->createToken('auth_token')->plainTextToken;
 

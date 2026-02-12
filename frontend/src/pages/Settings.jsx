@@ -37,8 +37,8 @@ const Settings = () => {
         const fetchSettings = async () => {
             try {
                 const [settingsRes, apiKeyRes] = await Promise.all([
-                    axios.get('/api/settings'),
-                    axios.get('/api/settings/api-key')
+                    axios.get('settings'),
+                    axios.get('settings/api-key')
                 ]);
 
                 setSettings(settingsRes.data);
@@ -66,8 +66,8 @@ const Settings = () => {
         setMessage({ type: '', text: '' });
         try {
             await Promise.all([
-                axios.put('/api/settings/profile', { name: profile.name }),
-                axios.put('/api/settings', { settings: settings })
+                axios.put('settings/profile', { name: profile.name }),
+                axios.put('settings', { settings: settings })
             ]);
             setMessage({ type: 'success', text: 'Settings saved successfully!' });
         } catch (error) {
@@ -81,7 +81,7 @@ const Settings = () => {
         if (!window.confirm('Are you sure? This will invalidate the old API Key.')) return;
 
         try {
-            const response = await axios.post('/api/settings/api-key/regenerate');
+            const response = await axios.post('settings/api-key/regenerate');
             setApiKey({ hasKey: true, preview: response.data.apiKey });
             alert('New API Key Generated: ' + response.data.apiKey);
         } catch (error) {

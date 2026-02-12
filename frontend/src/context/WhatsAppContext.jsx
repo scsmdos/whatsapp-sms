@@ -27,11 +27,20 @@ export const WhatsAppProvider = ({ children }) => {
     useEffect(() => {
         if (!isAuthenticated || !token) return;
 
-        // Connect to WhatsApp service via Socket.io
-        const newSocket = io(import.meta.env.VITE_WHATSAPP_SERVICE_URL || 'http://localhost:3001');
+        // Connect to WhatsApp service via Socket.io with explicit options for Render
+        const newSocket = io(import.meta.env.VITE_WHATSAPP_SERVICE_URL, {
+            transports: ['websocket', 'polling'], // Allow both for better compatibility
+            path: '/socket.io',
+            withCredentials: true,
+            reconnection: true,
+        });
         setSocket(newSocket);
 
         // Listen for connection events
+        newSocket.on('status', (status) => {
+            setConnectionStatus(status);
+        });
+
         newSocket.on('qr', (qr) => {
             setQrCode(qr);
             setConnectionStatus('qr_ready');
@@ -65,15 +74,20 @@ export const WhatsAppProvider = ({ children }) => {
     }, [isAuthenticated, token]);
 
     // Status Polling Effect (Runs Always)
+    // Status Polling Effect
     useEffect(() => {
-        checkConnectionStatus();
-        const statusInterval = setInterval(checkConnectionStatus, 5000);
+        const check = async () => {
+            if (connectionStatus === 'initializing') return; // Don't poll while initializing
+            await checkConnectionStatus();
+        };
+
+        const statusInterval = setInterval(check, 5000);
         return () => clearInterval(statusInterval);
-    }, []);
+    }, [connectionStatus]);
 
     const checkConnectionStatus = async () => {
         try {
-            const response = await axios.get('/api/whatsapp/status');
+            const response = await axios.get('whatsapp/status');
             const isConn = response.data.connected || response.data.status === 'connected' || response.data.status === 'authenticated';
 
             if (isConn) {
@@ -93,7 +107,7 @@ export const WhatsAppProvider = ({ children }) => {
         setError(null);
         setConnectionStatus('initializing');
         try {
-            await axios.post('/api/whatsapp/initialize');
+            await axios.post('whatsapp/initialize');
         } catch (error) {
             console.error('Failed to initialize WhatsApp:', error);
             setError(error.response?.data?.message || 'Failed to connect to backend.');
@@ -103,7 +117,7 @@ export const WhatsAppProvider = ({ children }) => {
 
     const disconnectWhatsApp = async () => {
         try {
-            await axios.post('/api/whatsapp/disconnect');
+            await axios.post('whatsapp/disconnect');
             setConnected(false);
             setQrCode(null);
             setConnectionStatus('disconnected');
@@ -122,7 +136,7 @@ export const WhatsAppProvider = ({ children }) => {
                 formData.append('media', media);
             }
 
-            const response = await axios.post('/api/whatsapp/send', formData, {
+            const response = await axios.post('whatsapp/send', formData, {
                 headers: {
                     'Content-Type': 'multipart/form-data',
                 },
@@ -151,7 +165,7 @@ export const WhatsAppProvider = ({ children }) => {
 
     const resetSession = async () => {
         try {
-            await axios.post('/api/whatsapp/reset-session');
+            await axios.post('whatsapp/reset-session');
             setConnected(false);
             setQrCode(null);
             setConnectionStatus('disconnected');

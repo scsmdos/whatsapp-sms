@@ -95,6 +95,7 @@ const Login = () => {
                                 onChange={handleChange}
                                 className="input pl-10"
                                 placeholder="Enter your name"
+                                autoComplete="name"
                                 required={!isLogin}
                             />
                         </div>
@@ -117,6 +118,7 @@ const Login = () => {
                             onChange={handleChange}
                             className="input pl-10"
                             placeholder="Enter your email"
+                            autoComplete="username email"
                             required
                         />
                     </div>
@@ -138,6 +140,7 @@ const Login = () => {
                             onChange={handleChange}
                             className="input pl-10 pr-10"
                             placeholder="Enter your password"
+                            autoComplete={isLogin ? "current-password" : "new-password"}
                             required
                         />
                         <button
@@ -167,22 +170,7 @@ const Login = () => {
             </form>
 
             {/* Toggle Login/Register */}
-            <div className="mt-6 text-center">
-                <p className="text-sm text-gray-600">
-                    {isLogin ? "Don't have an account?" : 'Already have an account?'}{' '}
-                    <button
-                        type="button"
-                        onClick={() => {
-                            setIsLogin(!isLogin);
-                            setError('');
-                            setFormData({ name: '', email: '', password: '' });
-                        }}
-                        className="text-primary-600 font-medium hover:text-primary-700"
-                    >
-                        {isLogin ? 'Sign up' : 'Sign in'}
-                    </button>
-                </p>
-            </div>
+
         </div>
     );
 };

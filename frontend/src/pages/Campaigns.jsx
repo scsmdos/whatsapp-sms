@@ -30,7 +30,7 @@ const Campaigns = () => {
     const fetchCampaigns = async (isInitial = false) => {
         if (isInitial) setLoading(true);
         try {
-            const response = await axios.get('/api/campaigns');
+            const response = await axios.get('campaigns');
             setCampaigns(response.data);
         } catch (error) {
             console.error("Error fetching campaigns:", error);
@@ -47,7 +47,7 @@ const Campaigns = () => {
     useEffect(() => {
         const fetchGroups = async () => {
             try {
-                const response = await axios.get('/api/contacts');
+                const response = await axios.get('contacts');
                 const uniqueGroups = [...new Set(response.data.map(c => c.group).filter(Boolean))];
                 setGroups(['All Contacts', ...uniqueGroups]);
             } catch (error) {
@@ -69,7 +69,7 @@ const Campaigns = () => {
                 formData.append('media', newCampaign.media);
             }
 
-            await axios.post('/api/campaigns', formData, {
+            await axios.post('campaigns', formData, {
                 headers: {
                     'Content-Type': 'multipart/form-data'
                 }

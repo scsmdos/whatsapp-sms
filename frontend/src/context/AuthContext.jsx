@@ -46,7 +46,7 @@ export const AuthProvider = ({ children }) => {
 
     const fetchUser = async () => {
         try {
-            const response = await axios.get('/api/auth/me');
+            const response = await axios.get('auth/me');
             setUser(response.data.user);
         } catch (error) {
             console.error('Failed to fetch user:', error);
@@ -58,7 +58,7 @@ export const AuthProvider = ({ children }) => {
 
     const login = async (email, password) => {
         try {
-            const response = await axios.post('/api/auth/login', { email, password });
+            const response = await axios.post('auth/login', { email, password });
             // API return structure: { access_token, user, ... }
             const { access_token: newToken, user: userData } = response.data;
 
@@ -78,7 +78,7 @@ export const AuthProvider = ({ children }) => {
 
     const register = async (name, email, password) => {
         try {
-            const response = await axios.post('/api/auth/register', { name, email, password });
+            const response = await axios.post('auth/register', { name, email, password });
             const { access_token: newToken, user: userData } = response.data;
 
             localStorage.setItem('token', newToken);

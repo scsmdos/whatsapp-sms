@@ -34,7 +34,7 @@ const Contacts = () => {
     const fetchContacts = async (isInitial = false) => {
         if (isInitial) setLoading(true);
         try {
-            const response = await axios.get('/api/contacts');
+            const response = await axios.get('contacts');
             setContacts(response.data);
         } catch (error) {
             console.error("Error fetching contacts:", error);
@@ -60,7 +60,7 @@ const Contacts = () => {
             if (isEditMode && editId) {
                 await axios.put(`/api/contacts/${editId}`, payload);
             } else {
-                await axios.post('/api/contacts', payload);
+                await axios.post('contacts', payload);
             }
 
             setIsAddModalOpen(false);
@@ -86,7 +86,7 @@ const Contacts = () => {
         formData.append('file', importFile);
 
         try {
-            const response = await axios.post('/api/contacts/import', formData, {
+            const response = await axios.post('contacts/import', formData, {
                 headers: { 'Content-Type': 'multipart/form-data' }
             });
 
@@ -113,7 +113,7 @@ const Contacts = () => {
         if (!window.confirm(`Are you sure you want to delete ${selectedContacts.length} contacts?`)) return;
 
         try {
-            await axios.post('/api/contacts/bulk-delete', { ids: selectedContacts });
+            await axios.post('contacts/bulk-delete', { ids: selectedContacts });
             setSelectedContacts([]);
             fetchContacts();
         } catch (error) {

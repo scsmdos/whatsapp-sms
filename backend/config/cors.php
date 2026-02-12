@@ -19,7 +19,7 @@ return [
 
     'allowed_methods' => ['*'],
 
-    'allowed_origins' => ['http://localhost:5173'], // Allow frontend
+    'allowed_origins' => ['*', 'https://smssecure.in', 'http://localhost:5173'], // Allow all or specific domains
 
     'allowed_origins_patterns' => [],
 

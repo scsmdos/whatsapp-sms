@@ -58,7 +58,7 @@ class WhatsappController extends Controller
                     $request->file('media')->getClientOriginalName()
                 )->post("{$this->nodeUrl}/send", $request->except('media'));
             } else {
-                $response = Http::post("{$this->nodeUrl}/send", $request->all());
+                $response = Http::timeout(120)->post("{$this->nodeUrl}/send", $request->all());
             }
 
             return $response->json();
@@ -70,7 +70,7 @@ class WhatsappController extends Controller
     public function resetSession()
     {
         try {
-            $response = Http::post("{$this->nodeUrl}/reset-session");
+            $response = Http::timeout(120)->post("{$this->nodeUrl}/reset-session");
             return $response->json();
         } catch (\Exception $e) {
             return response()->json(['error' => 'Node service offline'], 503);
@@ -80,7 +80,7 @@ class WhatsappController extends Controller
     public function getChats()
     {
         try {
-            $response = Http::get("{$this->nodeUrl}/chats");
+            $response = Http::timeout(120)->get("{$this->nodeUrl}/chats");
             return $response->json();
         } catch (\Exception $e) {
             return response()->json(['error' => 'Failed to fetch chats', 'chats' => []], 503);
@@ -90,7 +90,7 @@ class WhatsappController extends Controller
     public function getChatMessages($chatId)
     {
         try {
-            $response = Http::get("{$this->nodeUrl}/chats/{$chatId}/messages");
+            $response = Http::timeout(120)->get("{$this->nodeUrl}/chats/{$chatId}/messages");
             return $response->json();
         } catch (\Exception $e) {
             return response()->json(['error' => 'Failed to fetch messages', 'messages' => []], 503);

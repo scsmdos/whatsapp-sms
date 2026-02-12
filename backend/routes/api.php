@@ -12,10 +12,6 @@ use App\Http\Controllers\AnalyticsController;
 use App\Http\Controllers\SettingController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\UserController;
-use App\Http\Controllers\DatabaseSetupController;
-
-// Magic Setup Route (Ensuring it is outside any and all middleware)
-Route::get('/setup-database', [DatabaseSetupController::class, 'setup']);
 
 // Auth Routes
 Route::post('/auth/login', [AuthController::class, 'login']);

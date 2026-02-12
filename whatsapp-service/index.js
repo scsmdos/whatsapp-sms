@@ -114,7 +114,31 @@ const initializeClient = () => {
 // Initial start
 initializeClient();
 
-// ... (socket.io handling) ...
+// Socket.io Connection Handler
+io.on('connection', (socket) => {
+    console.log('New client connected:', socket.id);
+
+    // Send current status immediately
+    socket.emit('status', connectionStatus);
+
+    // If we have a QR code waiting, send it to the new client
+    if (qrCodeData && connectionStatus === 'qr_ready') {
+        console.log('Sending cached QR code to new client');
+        socket.emit('qr', qrCodeData);
+    }
+
+    // If we are authenticated, tell the client
+    if (connectionStatus === 'authenticated' || connectionStatus === 'connected') {
+        socket.emit('authenticated');
+        if (clientUser) {
+            socket.emit('ready', clientUser);
+        }
+    }
+
+    socket.on('disconnect', () => {
+        console.log('Client disconnected:', socket.id);
+    });
+});
 
 // API Routes
 app.get('/status', (req, res) => {
