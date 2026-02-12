@@ -145,7 +145,8 @@ app.get('/status', (req, res) => {
     res.json({
         connected: connectionStatus === 'connected',
         status: connectionStatus,
-        phoneNumber: clientUser
+        phoneNumber: clientUser,
+        qrCode: qrCodeData // Send QR code via API as backup
     });
 });
 
