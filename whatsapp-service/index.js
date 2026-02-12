@@ -53,13 +53,16 @@ const initializeClient = async () => {
                 args: [
                     '--no-sandbox',
                     '--disable-setuid-sandbox',
-                    '--disable-gpu',
                     '--disable-dev-shm-usage',
                     '--disable-accelerated-2d-canvas',
                     '--no-first-run',
                     '--no-zygote',
-                    '--single-process', // Helps on Render
-                    '--disable-extensions'
+                    '--single-process',
+                    '--disable-gpu',
+                    '--disable-extensions',
+                    '--disable-software-rasterizer',
+                    '--mute-audio',
+                    '--disable-features=site-per-process' // Saves Memory
                 ],
                 headless: true,
                 timeout: 0,
@@ -202,44 +205,31 @@ app.post('/disconnect', async (req, res) => {
     }
 });
 
-// HARD RESET SESSION
+// HARD RESET SESSION (CONTAINER RESTART STRATEGY)
 app.post('/reset-session', async (req, res) => {
-    console.log('Hard resetting session...');
+    console.log('Hard resetting session (Container Restart)...');
+
+    // Send response FIRST so frontend knows command was received
+    res.json({ success: true, message: 'Server is restarting... Please wait 30 seconds.' });
+
     try {
         if (client) {
-            // Try to destroy the browser instance
-            try {
-                await client.destroy();
-            } catch (e) {
-                console.error('Error destroying client:', e);
-            }
+            await client.destroy().catch(() => { });
         }
 
-        client = null;
-        qrCodeData = null;
-        connectionStatus = 'disconnected';
-        clientUser = null;
-
-        // Delete auth folder
         const authPath = './.wwebjs_auth';
         if (fs.existsSync(authPath)) {
             fs.rmSync(authPath, { recursive: true, force: true });
-            console.log('Deleted .wwebjs_auth folder');
         }
-
-        // FORCE UNLOCK
-        isInitializing = false;
-
-        // Re-initialize
-        setTimeout(() => {
-            initializeClient();
-        }, 2000);
-
-        res.json({ success: true, message: 'Session reset successfully. Initializing new session.' });
-    } catch (error) {
-        console.error('Reset session error:', error);
-        res.status(500).json({ error: 'Failed to reset session' });
+    } catch (e) {
+        console.error('Cleanup error:', e);
     }
+
+    // FORCE CONTAINER RESTART
+    setTimeout(() => {
+        console.log('Exiting process to trigger restart...');
+        process.exit(1);
+    }, 1000);
 });
 
 app.post('/send', upload.single('media'), async (req, res) => {
