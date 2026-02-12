@@ -37,17 +37,23 @@ let clientUser = null;
 let isInitializing = false; // LOCK to prevent double-init
 
 const initializeClient = async () => {
-    if (isInitializing) {
-        console.log('⚠️ Already initializing, skipping duplicate request...');
-        return;
-    }
-
-    isInitializing = true;
     console.log('Initializing WhatsApp Client...');
+
+    // If client exists, try to destroy it first to clean up
+    if (client) {
+        try {
+            await client.destroy();
+        } catch (e) { console.log('Cleanup previous client error', e); }
+        client = null;
+    }
 
     try {
         client = new Client({
-            authStrategy: new LocalAuth(),
+            authStrategy: new LocalAuth({
+                clientId: "client-one",
+                dataPath: "./.wwebjs_auth"
+            }),
+            restartOnAuthFail: true, // Auto restart on auth fail
             puppeteer: {
                 executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined,
                 args: [
@@ -62,7 +68,7 @@ const initializeClient = async () => {
                     '--disable-extensions',
                     '--disable-software-rasterizer',
                     '--mute-audio',
-                    '--disable-features=site-per-process' // Saves Memory
+                    '--disable-features=site-per-process'
                 ],
                 headless: true,
                 timeout: 0,
@@ -86,7 +92,6 @@ const initializeClient = async () => {
             connectionStatus = 'connected';
             clientUser = client.info.wid.user;
             io.emit('ready', clientUser);
-            isInitializing = false; // Release lock
         });
 
         client.on('authenticated', () => {
@@ -99,7 +104,6 @@ const initializeClient = async () => {
             console.error('AUTHENTICATION FAILURE', msg);
             connectionStatus = 'auth_failed';
             io.emit('auth_failure', msg);
-            isInitializing = false; // Release lock
         });
 
         client.on('disconnected', (reason) => {
@@ -108,8 +112,6 @@ const initializeClient = async () => {
             qrCodeData = null;
             clientUser = null;
             io.emit('disconnected');
-            // Don't auto-reinit immediately to avoid loops
-            isInitializing = false;
         });
 
         await client.initialize();
@@ -117,7 +119,6 @@ const initializeClient = async () => {
     } catch (e) {
         console.error('Failed to setup client:', e);
         connectionStatus = 'disconnected';
-        isInitializing = false; // Release lock
     }
 };
 
