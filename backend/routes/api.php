@@ -14,7 +14,7 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\DatabaseSetupController;
 
-// Magic Setup Route (for deployment)
+// Magic Setup Route (Ensuring it is outside any and all middleware)
 Route::get('/setup-database', [DatabaseSetupController::class, 'setup']);
 
 // Auth Routes
