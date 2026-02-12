@@ -16,6 +16,7 @@ We deploy the WhatsApp Service first to get its URL.
     *   Click **New +** -> **Web Service**.
     *   Connect your GitHub repository.
     *   **Runtime**: Select **Docker** (It will auto-detect the `Dockerfile` we created).
+    *   **Root Directory**: Set this to **`whatsapp-service`**. This is critical because your repo has other folders.
     *   **Plan**: Free (or Starter if you need 24/7 uptime without sleep).
     *   Click **Create Web Service**.
 3.  **Get URL**:

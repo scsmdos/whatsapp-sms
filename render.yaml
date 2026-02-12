@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: whatsapp-service
+    env: docker
+    plan: free
+    branch: main
+    rootDir: whatsapp-service
+    dockerContext: whatsapp-service
+    healthCheckPath: /status
+    envVars:
+      - key: PORT
+        value: 3001
