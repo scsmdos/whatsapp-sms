@@ -227,6 +227,9 @@ app.post('/reset-session', async (req, res) => {
             console.log('Deleted .wwebjs_auth folder');
         }
 
+        // FORCE UNLOCK
+        isInitializing = false;
+
         // Re-initialize
         setTimeout(() => {
             initializeClient();
