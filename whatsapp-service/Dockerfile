@@ -1,29 +1,26 @@
-FROM ghcr.io/puppeteer/puppeteer:21.5.2
+FROM ghcr.io/puppeteer/puppeteer:22.4.1
 
-# Puppeteer image runs as 'pptruser' by default. We switch to root to install deps if needed, 
-# then back to pptruser. But for simple node deps, we can just use the user.
-
+# Switch to root to install dependencies if needed (Puppeteer image handles most)
 USER root
+
+# Set working directory
 WORKDIR /usr/src/app
 
 # Copy package files
 COPY package*.json ./
 
-# Install dependencies
-# Using npm ci for clean install
-RUN npm ci
+# Install dependencies (ignoring scripts to speed up)
+RUN npm ci --only=production
 
 # Copy app source
 COPY . .
 
-# Create necessary directories for whatsapp-web.js and set permissions
-RUN mkdir -p .wwebjs_auth .wwebjs_cache uploads \
-    && chown -R pptruser:pptruser /usr/src/app
+# Environment variables
+ENV NODE_ENV=production
+ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
+ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/google-chrome-stable
 
-# Switch back to non-root user for security and Puppeteer compatibility
-USER pptruser
-
-# Expose port (Render sets PORT env var, but good to document)
+# Expose port
 EXPOSE 3001
 
 # Start the application
