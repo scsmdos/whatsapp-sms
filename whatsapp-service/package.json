@@ -1,24 +1,19 @@
 {
     "name": "whatsapp-service",
     "version": "1.0.0",
-    "description": "WhatsApp Bulk Messaging Service",
-    "main": "index.js",
+    "description": "WhatsApp Service for Render",
+    "main": "app.js",
     "scripts": {
-        "start": "node --max-old-space-size=2048 index.js",
-        "dev": "nodemon --max-old-space-size=2048 index.js"
+        "start": "node app.js",
+        "dev": "nodemon app.js"
     },
-    "keywords": [],
-    "author": "",
-    "license": "ISC",
     "dependencies": {
+        "@whiskeysockets/baileys": "^6.6.0",
         "cors": "^2.8.5",
         "express": "^4.18.2",
         "multer": "^1.4.5-lts.1",
+        "pino": "^8.19.0",
         "qrcode": "^1.5.3",
-        "socket.io": "^4.7.4",
-        "whatsapp-web.js": "^1.23.0"
-    },
-    "devDependencies": {
-        "nodemon": "^3.0.3"
+        "socket.io": "^4.7.4"
     }
 }
