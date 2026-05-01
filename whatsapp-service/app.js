@@ -199,15 +199,36 @@ app.post('/reset-session', (req, res) => {
 });
 
 app.post('/send', upload.single('media'), async (req, res) => {
-    if (!sock || connectionStatus !== 'connected') return res.status(400).json({ error: 'Not connected' });
-    const { to, message } = req.body;
+    if (!sock || connectionStatus !== 'connected') {
+        console.error('SEND ERROR: WhatsApp not connected');
+        return res.status(400).json({ error: 'WhatsApp not connected' });
+    }
+
+    let { to, message } = req.body;
     try {
+        // Clean JID
         let jid = to.replace(/[^0-9]/g, '');
-        if (jid.length === 10) jid = '91' + jid;
-        jid += '@s.whatsapp.net';
-        await sock.sendMessage(jid, { text: message || '' });
+        if (!jid.endsWith('@s.whatsapp.net')) {
+            if (jid.length === 10) jid = '91' + jid;
+            jid += '@s.whatsapp.net';
+        }
+
+        console.log(`Sending message to ${jid}...`);
+
+        if (req.file) {
+            const mediaType = req.file.mimetype.startsWith('image') ? 'image' : 'video';
+            await sock.sendMessage(jid, { 
+                [mediaType]: req.file.buffer, 
+                caption: message || '' 
+            });
+        } else {
+            await sock.sendMessage(jid, { text: message || '' });
+        }
+
+        console.log(`✅ Message sent to ${jid}`);
         res.json({ success: true });
     } catch (error) {
+        console.error(`❌ Failed to send message to ${to}:`, error.message);
         res.status(500).json({ error: error.message });
     }
 });
