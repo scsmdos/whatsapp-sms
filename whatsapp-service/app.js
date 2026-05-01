@@ -44,19 +44,17 @@ const updateStatus = (status, step = '', error = null) => {
 };
 
 const initializeWhatsApp = async () => {
-    const { default: makeWASocket, useMultiFileAuthState, DisconnectReason } = require('@whiskeysockets/baileys');
+    const { default: makeWASocket, useMultiFileAuthState, DisconnectReason, fetchLatestBaileysVersion } = require('@whiskeysockets/baileys');
     const qrcode = require('qrcode');
     const pino = require('pino');
 
     if (isInitializing || connectionStatus === 'connected') return;
     isInitializing = true;
-    updateStatus('initializing', 'Starting Power-Engine...');
-
-    // Hardcoded version to skip network fetch and start instantly
-    const version = [2, 3000, 1015901307]; 
-    console.log(`[SYSTEM] Starting Instant-Connect (WA v${version.join('.')})`);
+    updateStatus('initializing', 'Fetching WA Version...');
 
     try {
+        const { version, isLatest } = await fetchLatestBaileysVersion();
+        console.log(`[SYSTEM] Starting Connect (WA v${version.join('.')}, Latest: ${isLatest})`);
         const { state, saveCreds } = await useMultiFileAuthState('auth_info');
 
         sock = makeWASocket({
