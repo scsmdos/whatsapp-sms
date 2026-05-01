@@ -152,6 +152,13 @@ app.get('/status', (req, res) => res.json({
     qrCode: qrCodeData
 }));
 
+app.post('/initialize', (req, res) => {
+    isInitializing = false;
+    qrCodeData = null;
+    initializeWhatsApp();
+    res.json({ success: true, message: 'Initializing...' });
+});
+
 app.post('/reinit', (req, res) => {
     isInitializing = false;
     qrCodeData = null;
