@@ -76,6 +76,7 @@ const initializeWhatsApp = async () => {
             
             if (qr) {
                 console.log('[SYSTEM] New QR Generated');
+                updateStatus('qr_ready', 'QR Code Ready! Scan now.');
                 qrCodeData = await qrcode.toDataURL(qr);
                 io.emit('qr', qrCodeData);
             }
