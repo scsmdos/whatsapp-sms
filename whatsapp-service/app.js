@@ -87,20 +87,14 @@ const initializeWhatsApp = async () => {
             }
 
             if (connection === 'close') {
-                const statusCode = lastDisconnect?.error?.output?.statusCode;
-                const reason = lastDisconnect?.error?.message || 'Unknown';
-                isInitializing = false;
-                qrCodeData = null;
-
-                console.log(`Disconnected: Status ${statusCode}, Reason: ${reason}`);
-
-                if (statusCode === DisconnectReason.loggedOut) {
-                    updateStatus('disconnected', 'Logged out.', reason);
+                const shouldReconnect = (lastDisconnect.error)?.output?.statusCode !== DisconnectReason.loggedOut;
+                updateStatus('disconnected', `Closed: ${lastDisconnect.error?.message || 'Unknown'}`);
+                if (shouldReconnect) {
+                    isInitializing = false;
+                    setTimeout(() => initializeWhatsApp(), 3000);
+                } else {
                     const authPath2 = path.join(__dirname, 'auth_info');
                     if (fs.existsSync(authPath2)) fs.rmSync(authPath2, { recursive: true, force: true });
-                } else {
-                    updateStatus('initializing', `Retrying... (${reason})`, reason);
-                    setTimeout(initializeWhatsApp, 5000);
                 }
             } else if (connection === 'open') {
                 clientUser = sock.user.id.split(':')[0];
