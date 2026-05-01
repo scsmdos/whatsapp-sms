@@ -56,135 +56,94 @@ const initializeWhatsApp = async () => {
 
         updateStatus('initializing', 'Fetching latest WA version...');
         const { version, isLatest } = await fetchLatestBaileysVersion();
-        console.log(`Using Baileys v${version.join('.')}, isLatest: ${isLatest}`);
+        console.log(`[SYSTEM] Initializing WhatsApp v${version.join('.')} (Latest: ${isLatest})`);
 
         const { state, saveCreds } = await useMultiFileAuthState('auth_info');
 
-        updateStatus('initializing', `Connecting (WA v${version.join('.')})...`);
         sock = makeWASocket({
             version,
-            auth: state,
             printQRInTerminal: false,
-            logger: pino({ level: 'silent' }),
-            browser: ["Mac OS", "Chrome", "120.0.0.0"],
+            auth: state,
+            logger: pino({ level: 'error' }),
+            browser: ["macOS", "Chrome", "121.0.6167.140"],
             connectTimeoutMs: 60000,
             defaultQueryTimeoutMs: 60000,
-            keepAliveIntervalMs: 25000,
-            generateHighQualityLinkPreview: false,
-            syncFullHistory: false
+            keepAliveIntervalMs: 30000,
+            emitOwnEvents: true,
+            getMessage: async (key) => { return { conversation: 'Hello' } } // Fallback for stability
         });
 
         sock.ev.on('creds.update', saveCreds);
 
         sock.ev.on('connection.update', async (update) => {
             const { connection, lastDisconnect, qr } = update;
-
+            
             if (qr) {
-                updateStatus('qr_ready', 'QR Code Ready! Scan now.');
+                console.log('[SYSTEM] New QR Generated');
                 qrCodeData = await qrcode.toDataURL(qr);
                 io.emit('qr', qrCodeData);
             }
 
             if (connection === 'close') {
-                const shouldReconnect = (lastDisconnect.error)?.output?.statusCode !== DisconnectReason.loggedOut;
-                updateStatus('disconnected', `Closed: ${lastDisconnect.error?.message || 'Unknown'}`);
+                const errorCode = (lastDisconnect.error)?.output?.statusCode;
+                const shouldReconnect = errorCode !== DisconnectReason.loggedOut;
+                
+                console.log(`[SYSTEM] Connection Closed. Reason: ${errorCode}. Reconnecting: ${shouldReconnect}`);
+                
+                qrCodeData = null;
+                updateStatus('disconnected', `Session Closed (${errorCode})`);
+
                 if (shouldReconnect) {
                     isInitializing = false;
-                    setTimeout(() => initializeWhatsApp(), 3000);
+                    setTimeout(initializeWhatsApp, 5000); // 5s gap for safety
                 } else {
-                    const authPath2 = path.join(__dirname, 'auth_info');
-                    if (fs.existsSync(authPath2)) fs.rmSync(authPath2, { recursive: true, force: true });
+                    console.log('[SYSTEM] Logged out. Clearing session...');
+                    const authPath = path.join(__dirname, 'auth_info');
+                    if (fs.existsSync(authPath)) fs.rmSync(authPath, { recursive: true, force: true });
+                    initializeWhatsApp();
                 }
             } else if (connection === 'open') {
                 clientUser = sock.user.id.split(':')[0];
-                updateStatus('connected', 'Connected!', null);
-                isInitializing = false;
+                console.log(`[SYSTEM] Successfully Connected as ${clientUser}`);
                 qrCodeData = null;
-                console.log('WhatsApp Connected as:', clientUser);
+                isInitializing = false;
+                updateStatus('connected', 'System Online', null);
+                io.emit('status_update', { connected: true, status: 'connected', phoneNumber: clientUser });
             }
         });
 
     } catch (err) {
-        console.error('INIT ERROR:', err.message);
+        console.error('[CRITICAL] Init Error:', err.message);
         isInitializing = false;
-        updateStatus('disconnected', `INIT FAILED`, err.message);
+        updateStatus('disconnected', 'System Error', err.message);
         setTimeout(initializeWhatsApp, 10000);
     }
 };
 
-// Self-ping to prevent Render sleep
-setInterval(() => {
-    axios.get('https://whatsapp-sms-wkzg.onrender.com/ping').catch(() => {});
-}, 4 * 60 * 1000);
+// --- API Routes (Powerfull Endpoints) ---
 
-// Routes
-app.get('/ping', (req, res) => res.send('pong'));
-
-app.get('/', (req, res) => {
-    res.send(`
-        <!DOCTYPE html>
-        <html>
-        <head><title>WhatsApp Service</title><meta http-equiv="refresh" content="5"></head>
-        <body style="font-family:sans-serif;text-align:center;padding:50px;">
-            <h1 style="color:#25D366">WhatsApp Render Service</h1>
-            <p>Status: <b>${connectionStatus}</b></p>
-            <p>Step: ${stepStatus}</p>
-            ${lastError ? `<p style="color:red">Error: ${lastError}</p>` : ''}
-            <form action="/reinit" method="POST">
-                <button style="padding:10px 20px;background:#25D366;color:white;border:none;border-radius:5px;cursor:pointer">
-                    Reset & Reconnect
-                </button>
-            </form>
-            <div style="margin-top:30px">
-                ${qrCodeData ? `<img src="${qrCodeData}"><p><b>Scan this QR!</b></p>` : '<p>Waiting for QR...</p>'}
-            </div>
-        </body>
-        </html>
-    `);
+app.get('/status', (req, res) => {
+    res.json({
+        connected: connectionStatus === 'connected',
+        status: connectionStatus,
+        step: stepStatus,
+        error: lastError,
+        phoneNumber: clientUser,
+        qrCode: qrCodeData,
+        timestamp: new Date().toISOString()
+    });
 });
-
-app.get('/status', (req, res) => res.json({
-    connected: connectionStatus === 'connected',
-    status: connectionStatus,
-    step: stepStatus,
-    error: lastError,
-    phoneNumber: clientUser,
-    qrCode: qrCodeData
-}));
 
 app.post('/initialize', (req, res) => {
-    isInitializing = false;
+    console.log('[API] Manual Initialization Requested');
     qrCodeData = null;
-    initializeWhatsApp();
-    res.json({ success: true, message: 'Initializing...' });
-});
-
-app.post('/reinit', (req, res) => {
     isInitializing = false;
-    qrCodeData = null;
-    const authPath = path.join(__dirname, 'auth_info');
-    if (fs.existsSync(authPath)) fs.rmSync(authPath, { recursive: true, force: true });
     initializeWhatsApp();
-    res.redirect('/');
-});
-
-app.post('/disconnect', async (req, res) => {
-    try {
-        if (sock) {
-            await sock.logout();
-            sock.end();
-            sock = null;
-        }
-        const authPath = path.join(__dirname, 'auth_info');
-        if (fs.existsSync(authPath)) fs.rmSync(authPath, { recursive: true, force: true });
-        updateStatus('disconnected', 'Disconnected by user');
-        res.json({ success: true });
-    } catch (err) {
-        res.status(500).json({ error: err.message });
-    }
+    res.json({ success: true, message: 'System Re-Initializing' });
 });
 
 app.post('/reset-session', (req, res) => {
+    console.log('[API] Session Reset Requested');
     const authPath = path.join(__dirname, 'auth_info');
     if (fs.existsSync(authPath)) fs.rmSync(authPath, { recursive: true, force: true });
     qrCodeData = null;
@@ -195,25 +154,21 @@ app.post('/reset-session', (req, res) => {
         sock = null;
     }
     initializeWhatsApp();
-    res.json({ success: true });
+    res.json({ success: true, message: 'Session Cleared & Resetting' });
 });
 
 app.post('/send', upload.single('media'), async (req, res) => {
     if (!sock || connectionStatus !== 'connected') {
-        console.error('SEND ERROR: WhatsApp not connected');
-        return res.status(400).json({ error: 'WhatsApp not connected' });
+        return res.status(400).json({ error: 'WhatsApp not connected. Please scan QR.' });
     }
 
-    let { to, message } = req.body;
+    const { to, message } = req.body;
     try {
-        // Clean JID
         let jid = to.replace(/[^0-9]/g, '');
-        if (!jid.endsWith('@s.whatsapp.net')) {
-            if (jid.length === 10) jid = '91' + jid;
-            jid += '@s.whatsapp.net';
-        }
+        if (jid.length === 10) jid = '91' + jid;
+        jid += '@s.whatsapp.net';
 
-        console.log(`Sending message to ${jid}...`);
+        console.log(`[SEND] Dispatching to ${jid}...`);
 
         if (req.file) {
             const mediaType = req.file.mimetype.startsWith('image') ? 'image' : 'video';
@@ -225,16 +180,31 @@ app.post('/send', upload.single('media'), async (req, res) => {
             await sock.sendMessage(jid, { text: message || '' });
         }
 
-        console.log(`✅ Message sent to ${jid}`);
         res.json({ success: true });
-    } catch (error) {
-        console.error(`❌ Failed to send message to ${to}:`, error.message);
-        res.status(500).json({ error: error.message });
+    } catch (err) {
+        console.error(`[SEND ERROR] ${to}:`, err.message);
+        res.status(500).json({ error: err.message });
     }
+});
+
+app.get('/', (req, res) => {
+    res.send(`
+        <html>
+        <body style="font-family:sans-serif; text-align:center; padding-top:50px; background:#f0f2f5">
+            <h1 style="color:#25D366">WhatsApp Power-Service Online</h1>
+            <p>Status: <b>${connectionStatus.toUpperCase()}</b></p>
+            <p>Phone: ${clientUser || 'N/A'}</p>
+            <div style="margin-top:20px">
+                ${qrCodeData ? `<img src="${qrCodeData}"><br><b>SCAN NOW</b>` : '<p>System Ready & Listening</p>'}
+            </div>
+            <p style="color:gray; font-size:12px; margin-top:50px">V2.0.0 Power-Engine</p>
+        </body>
+        </html>
+    `);
 });
 
 const PORT = process.env.PORT || 3001;
 server.listen(PORT, () => {
-    console.log(`Running on port ${PORT}`);
+    console.log(`[POWER-ON] System listening on port ${PORT}`);
     setTimeout(initializeWhatsApp, 2000);
 });
