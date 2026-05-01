@@ -1,4 +1,7 @@
-FROM node:18-slim
+FROM node:18
+
+# Install git (needed for some dependencies)
+RUN apt-get update && apt-get install -y git && rm -rf /var/lib/apt/lists/*
 
 # Set working directory
 WORKDIR /usr/src/app
