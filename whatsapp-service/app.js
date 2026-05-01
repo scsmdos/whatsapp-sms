@@ -22,45 +22,40 @@ let sock = null;
 let qrCodeData = null;
 let connectionStatus = 'disconnected';
 let stepStatus = 'Waiting to start...';
+let lastError = null;
 let clientUser = null;
 let isInitializing = false;
 
-const updateStatus = (status, step = '', data = null) => {
+const updateStatus = (status, step = '', error = null) => {
     connectionStatus = status;
     if (step) stepStatus = step;
+    if (error) lastError = error;
     
-    io.emit('status', { status, step: stepStatus });
-    if (status === 'qr_ready') {
-        qrCodeData = data;
-        io.emit('qr', data);
-    } else if (status === 'connected') {
-        clientUser = data;
-        io.emit('ready', data);
-    }
+    io.emit('status', { status, step: stepStatus, error: lastError });
 };
 
 const initializeWhatsApp = async () => {
     if (isInitializing && connectionStatus === 'initializing') return;
     isInitializing = true;
-    updateStatus('initializing', 'Step 1: Loading Baileys Libraries...');
+    updateStatus('initializing', 'Step 1: Initializing Libraries...');
 
     try {
         const { default: makeWASocket, useMultiFileAuthState, DisconnectReason, Browsers } = require('@whiskeysockets/baileys');
         const qrcode = require('qrcode');
         const pino = require('pino');
 
-        updateStatus('initializing', 'Step 2: Setting up Session Storage...');
         const authPath = path.join(__dirname, 'auth_info');
         const { state, saveCreds } = await useMultiFileAuthState(authPath);
 
-        updateStatus('initializing', 'Step 3: Connecting to WhatsApp Servers...');
+        updateStatus('initializing', 'Step 2: Connecting to WhatsApp...');
         sock = makeWASocket({
             auth: state,
             printQRInTerminal: false,
             logger: pino({ level: 'silent' }),
-            browser: Browsers.macOS('Desktop'),
-            connectTimeoutMs: 60000,
-            retryRequestDelayMs: 5000
+            browser: Browsers.ubuntu('Chrome'), // Use Ubuntu string for Render
+            connectTimeoutMs: 120000,
+            defaultQueryTimeoutMs: 120000,
+            keepAliveIntervalMs: 30000
         });
 
         sock.ev.on('creds.update', saveCreds);
@@ -69,34 +64,38 @@ const initializeWhatsApp = async () => {
             const { connection, lastDisconnect, qr } = update;
 
             if (qr) {
-                updateStatus('qr_ready', 'Step 4: QR Code Ready! Please scan.');
+                updateStatus('qr_ready', 'Step 3: QR Code Ready!');
                 qrCodeData = await qrcode.toDataURL(qr);
                 io.emit('qr', qrCodeData);
             }
 
             if (connection === 'close') {
                 const statusCode = lastDisconnect.error?.output?.statusCode;
+                const reason = lastDisconnect.error?.message || 'Connection Rejected';
+                
+                isInitializing = false;
+                qrCodeData = null;
+                
                 if (statusCode !== DisconnectReason.loggedOut) {
-                    isInitializing = false;
-                    updateStatus('initializing', 'Reconnecting...');
+                    updateStatus('initializing', `Retrying... (Reason: ${reason})`, reason);
                     setTimeout(initializeWhatsApp, 5000);
                 } else {
-                    updateStatus('disconnected', 'Logged out. Please re-init.');
+                    updateStatus('disconnected', 'Logged out.', reason);
                     if (fs.existsSync(authPath)) fs.rmSync(authPath, { recursive: true, force: true });
-                    isInitializing = false;
                 }
             } else if (connection === 'open') {
                 clientUser = sock.user.id.split(':')[0];
                 updateStatus('connected', 'WhatsApp Connected!');
                 isInitializing = false;
                 qrCodeData = null;
+                lastError = null;
             }
         });
 
     } catch (err) {
         console.error('Init Error:', err);
         isInitializing = false;
-        updateStatus('disconnected', `Error: ${err.message}`);
+        updateStatus('disconnected', `Error: ${err.message}`, err.message);
     }
 };
 
@@ -111,27 +110,27 @@ app.get('/', (req, res) => {
         <div style="font-family: sans-serif; text-align: center; padding: 50px;">
             <h1 style="color: #25D366;">WhatsApp Render Service</h1>
             <div style="font-size: 20px; margin-bottom: 10px;">Status: <b style="color: blue;">${connectionStatus}</b></div>
-            <div style="color: #666; margin-bottom: 20px;">Current Step: ${stepStatus}</div>
+            <div style="color: #666; margin-bottom: 5px;">Step: ${stepStatus}</div>
+            ${lastError ? `<div style="color: red; font-size: 14px; margin-bottom: 20px;">Error: ${lastError}</div>` : ''}
             
             <form action="/initialize" method="POST">
                 <button type="submit" style="padding: 10px 20px; background: #25D366; color: white; border: none; border-radius: 5px; cursor: pointer;">
-                    Start/Restart Connection
+                    Reset & Try Again
                 </button>
             </form>
 
             <div id="qr-container" style="margin-top: 30px;">
-                ${qrCodeData ? `<img src="${qrCodeData}" /><p>Scan now!</p>` : '<p>Wait for QR code to appear...</p>'}
+                ${qrCodeData ? `<img src="${qrCodeData}" /><p>Scan now!</p>` : '<p>Wait for QR... (Generating)</p>'}
             </div>
 
             <script>
-                const qrContainer = document.getElementById('qr-container');
                 setInterval(async () => {
                     const res = await fetch('/status');
                     const data = await res.json();
                     if (data.qrCode) {
-                        qrContainer.innerHTML = '<img src="' + data.qrCode + '" /><p>Scan now!</p>';
+                        document.getElementById('qr-container').innerHTML = '<img src="' + data.qrCode + '" /><p>Scan now!</p>';
                     } else if (data.status === 'connected') {
-                        qrContainer.innerHTML = '<h2 style="color: green;">✓ Connected as ' + data.phoneNumber + '</h2>';
+                        document.getElementById('qr-container').innerHTML = '<h2 style="color: green;">✓ Connected!</h2>';
                     }
                 }, 3000);
             </script>
@@ -144,6 +143,7 @@ app.get('/status', (req, res) => {
         connected: connectionStatus === 'connected',
         status: connectionStatus,
         step: stepStatus,
+        error: lastError,
         phoneNumber: clientUser,
         qrCode: qrCodeData
     });
@@ -157,6 +157,5 @@ app.post('/initialize', (req, res) => {
 
 const PORT = process.env.PORT || 3001;
 server.listen(PORT, () => {
-    console.log(`Service running on port ${PORT}`);
     setTimeout(initializeWhatsApp, 2000);
 });
