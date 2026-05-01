@@ -56,10 +56,9 @@ const initializeWhatsApp = async () => {
 
         updateStatus('initializing', 'Fetching latest WA version...');
         const { version, isLatest } = await fetchLatestBaileysVersion();
-        console.log(`Using WA v${version.join('.')}, isLatest: ${isLatest}`);
+        console.log(`Using Baileys v${version.join('.')}, isLatest: ${isLatest}`);
 
-        const authPath = path.join(__dirname, 'auth_info');
-        const { state, saveCreds } = await useMultiFileAuthState(authPath);
+        const { state, saveCreds } = await useMultiFileAuthState('auth_info');
 
         updateStatus('initializing', `Connecting (WA v${version.join('.')})...`);
         sock = makeWASocket({
@@ -67,7 +66,7 @@ const initializeWhatsApp = async () => {
             auth: state,
             printQRInTerminal: false,
             logger: pino({ level: 'silent' }),
-            browser: ['SMS Secure', 'Chrome', '4.0.0'],
+            browser: ["Mac OS", "Chrome", "120.0.0.0"],
             connectTimeoutMs: 60000,
             defaultQueryTimeoutMs: 60000,
             keepAliveIntervalMs: 25000,
