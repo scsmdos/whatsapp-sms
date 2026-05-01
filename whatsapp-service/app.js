@@ -1,3 +1,8 @@
+// FIX FOR CRYPTO ERROR
+if (typeof global.crypto === 'undefined') {
+    global.crypto = require('crypto').webcrypto;
+}
+
 const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
@@ -44,17 +49,18 @@ const initializeWhatsApp = async () => {
         const qrcode = require('qrcode');
         const pino = require('pino');
 
+        updateStatus('initializing', 'Step 2: Setting up Session Storage...');
         const authPath = path.join(__dirname, 'auth_info');
         const { state, saveCreds } = await useMultiFileAuthState(authPath);
 
-        updateStatus('initializing', 'Step 2: Connecting to WhatsApp...');
+        updateStatus('initializing', 'Step 3: Connecting to WhatsApp Servers...');
         sock = makeWASocket({
             auth: state,
             printQRInTerminal: false,
             logger: pino({ level: 'silent' }),
-            browser: Browsers.ubuntu('Chrome'), // Use Ubuntu string for Render
-            connectTimeoutMs: 120000,
-            defaultQueryTimeoutMs: 120000,
+            browser: Browsers.ubuntu('Chrome'),
+            connectTimeoutMs: 60000,
+            defaultQueryTimeoutMs: 60000,
             keepAliveIntervalMs: 30000
         });
 
@@ -64,7 +70,7 @@ const initializeWhatsApp = async () => {
             const { connection, lastDisconnect, qr } = update;
 
             if (qr) {
-                updateStatus('qr_ready', 'Step 3: QR Code Ready!');
+                updateStatus('qr_ready', 'Step 4: QR Code Ready!');
                 qrCodeData = await qrcode.toDataURL(qr);
                 io.emit('qr', qrCodeData);
             }
