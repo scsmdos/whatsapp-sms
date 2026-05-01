@@ -168,6 +168,36 @@ app.post('/reinit', (req, res) => {
     res.redirect('/');
 });
 
+app.post('/disconnect', async (req, res) => {
+    try {
+        if (sock) {
+            await sock.logout();
+            sock.end();
+            sock = null;
+        }
+        const authPath = path.join(__dirname, 'auth_info');
+        if (fs.existsSync(authPath)) fs.rmSync(authPath, { recursive: true, force: true });
+        updateStatus('disconnected', 'Disconnected by user');
+        res.json({ success: true });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.post('/reset-session', (req, res) => {
+    const authPath = path.join(__dirname, 'auth_info');
+    if (fs.existsSync(authPath)) fs.rmSync(authPath, { recursive: true, force: true });
+    qrCodeData = null;
+    isInitializing = false;
+    connectionStatus = 'disconnected';
+    if (sock) {
+        sock.end();
+        sock = null;
+    }
+    initializeWhatsApp();
+    res.json({ success: true });
+});
+
 app.post('/send', upload.single('media'), async (req, res) => {
     if (!sock || connectionStatus !== 'connected') return res.status(400).json({ error: 'Not connected' });
     const { to, message } = req.body;
