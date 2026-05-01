@@ -15,7 +15,11 @@ const axios = require('axios');
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server, {
-    cors: { origin: '*', methods: ['GET', 'POST'] }
+    cors: {
+        origin: ['https://smssecure.in', 'https://www.smssecure.in', 'http://localhost:5173'],
+        methods: ['GET', 'POST'],
+        credentials: true
+    }
 });
 
 app.use(cors());
@@ -35,7 +39,8 @@ const updateStatus = (status, step = '', error = null) => {
     connectionStatus = status;
     if (step) stepStatus = step;
     if (error !== null) lastError = error;
-    io.emit('status', { status, step: stepStatus, error: lastError });
+    // Emit plain string for frontend compatibility
+    io.emit('status', status);
 };
 
 const initializeWhatsApp = async () => {
