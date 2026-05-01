@@ -44,33 +44,31 @@ const updateStatus = (status, step = '', error = null) => {
 };
 
 const initializeWhatsApp = async () => {
-    if (isInitializing && connectionStatus === 'initializing') return;
+    const { default: makeWASocket, useMultiFileAuthState, DisconnectReason } = require('@whiskeysockets/baileys');
+    const qrcode = require('qrcode');
+    const pino = require('pino');
+
+    if (isInitializing || connectionStatus === 'connected') return;
     isInitializing = true;
-    lastError = null;
+    updateStatus('initializing', 'Starting Power-Engine...');
+
+    // Hardcoded version to skip network fetch and start instantly
+    const version = [2, 3000, 1015901307]; 
+    console.log(`[SYSTEM] Starting Instant-Connect (WA v${version.join('.')})`);
 
     try {
-        updateStatus('initializing', 'Loading libraries...');
-        const { default: makeWASocket, useMultiFileAuthState, DisconnectReason, fetchLatestBaileysVersion } = require('@whiskeysockets/baileys');
-        const qrcode = require('qrcode');
-        const pino = require('pino');
-
-        updateStatus('initializing', 'Fetching latest WA version...');
-        const { version, isLatest } = await fetchLatestBaileysVersion();
-        console.log(`[SYSTEM] Initializing WhatsApp v${version.join('.')} (Latest: ${isLatest})`);
-
         const { state, saveCreds } = await useMultiFileAuthState('auth_info');
 
         sock = makeWASocket({
             version,
             printQRInTerminal: false,
             auth: state,
-            logger: pino({ level: 'error' }),
-            browser: ["macOS", "Chrome", "121.0.6167.140"],
-            connectTimeoutMs: 60000,
-            defaultQueryTimeoutMs: 60000,
-            keepAliveIntervalMs: 30000,
-            emitOwnEvents: true,
-            getMessage: async (key) => { return { conversation: 'Hello' } } // Fallback for stability
+            logger: pino({ level: 'silent' }), // Totally silent for speed
+            browser: ["macOS", "Chrome", "121.0.0.0"],
+            connectTimeoutMs: 30000,
+            keepAliveIntervalMs: 15000,
+            generateHighQualityLinkPreview: false,
+            syncFullHistory: false
         });
 
         sock.ev.on('creds.update', saveCreds);
