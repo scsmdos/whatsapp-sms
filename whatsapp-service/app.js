@@ -201,6 +201,16 @@ app.get('/', (req, res) => {
     `);
 });
 
+app.get('/ping', (req, res) => res.send('System Awake'));
+
+// --- Self-Ping System to prevent Render sleep ---
+setInterval(() => {
+    console.log('[KEEP-ALIVE] Pinging self...');
+    axios.get('https://whatsapp-sms-wkzg.onrender.com/ping')
+        .then(() => console.log('[KEEP-ALIVE] Pulse OK'))
+        .catch(err => console.log('[KEEP-ALIVE] Pulse Failed:', err.message));
+}, 5 * 60 * 1000); // Every 5 minutes
+
 const PORT = process.env.PORT || 3001;
 server.listen(PORT, () => {
     console.log(`[POWER-ON] System listening on port ${PORT}`);
