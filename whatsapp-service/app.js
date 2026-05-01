@@ -37,8 +37,9 @@ const updateStatus = (status, data = null) => {
 };
 
 const initializeWhatsApp = async () => {
-    if (isInitializing) return;
+    if (isInitializing && connectionStatus !== 'disconnected') return;
     isInitializing = true;
+    updateStatus('initializing');
 
     try {
         const { default: makeWASocket, useMultiFileAuthState, DisconnectReason, Browsers } = require('@whiskeysockets/baileys');
@@ -50,7 +51,7 @@ const initializeWhatsApp = async () => {
 
         sock = makeWASocket({
             auth: state,
-            printQRInTerminal: false,
+            printQRInTerminal: true,
             logger: pino({ level: 'silent' }),
             browser: Browsers.macOS('Desktop')
         });
@@ -69,7 +70,7 @@ const initializeWhatsApp = async () => {
                 const statusCode = lastDisconnect.error?.output?.statusCode;
                 if (statusCode !== DisconnectReason.loggedOut) {
                     isInitializing = false;
-                    setTimeout(initializeWhatsApp, 5000);
+                    setTimeout(initializeWhatsApp, 3000);
                 } else {
                     updateStatus('disconnected');
                     if (fs.existsSync(authPath)) fs.rmSync(authPath, { recursive: true, force: true });
@@ -86,18 +87,30 @@ const initializeWhatsApp = async () => {
     } catch (err) {
         console.error('Init Error:', err);
         isInitializing = false;
+        updateStatus('disconnected');
     }
 };
 
-// --- SELF PING TO PREVENT SLEEP ---
+// --- SELF PING ---
 const RENDER_URL = 'https://whatsapp-sms-wkzg.onrender.com';
 setInterval(() => {
     axios.get(RENDER_URL).catch(() => {});
-}, 10 * 60 * 1000); // Ping every 10 mins
+}, 5 * 60 * 1000); 
 
 // Routes
 app.get('/', (req, res) => {
-    res.send('<h1>WhatsApp Render Service is Running</h1><p>Status: ' + connectionStatus + '</p>');
+    res.send(`
+        <div style="font-family: sans-serif; text-align: center; padding: 50px;">
+            <h1 style="color: #25D366;">WhatsApp Render Service</h1>
+            <div style="font-size: 20px; margin-bottom: 20px;">Status: <b style="color: blue;">${connectionStatus}</b></div>
+            <form action="/initialize" method="POST">
+                <button type="submit" style="padding: 10px 20px; background: #25D366; color: white; border: none; border-radius: 5px; cursor: pointer;">
+                    Re-Initialize WhatsApp
+                </button>
+            </form>
+            ${qrCodeData ? `<div style="margin-top: 20px;"><img src="${qrCodeData}" /><p>Scan this with your phone</p></div>` : ''}
+        </div>
+    `);
 });
 
 app.get('/status', (req, res) => {
@@ -111,25 +124,19 @@ app.get('/status', (req, res) => {
 
 app.post('/initialize', (req, res) => {
     initializeWhatsApp();
-    res.json({ message: 'Initializing...' });
+    res.redirect('/');
 });
 
-app.post('/send', upload.single('media'), async (req, res) => {
-    if (connectionStatus !== 'connected') return res.status(400).json({ error: 'Not connected' });
-    const { to, message } = req.body;
-    try {
-        let jid = to.replace(/[^0-9]/g, '');
-        if (jid.length === 10) jid = '91' + jid;
-        jid += '@s.whatsapp.net';
-        await sock.sendMessage(jid, { text: message || '' });
-        res.json({ success: true });
-    } catch (error) {
-        res.status(500).json({ error: error.message });
+app.get('/qr', (req, res) => {
+    if (qrCodeData) {
+        res.send(`<img src="${qrCodeData}" />`);
+    } else {
+        res.send('QR not ready or already connected.');
     }
 });
 
 const PORT = process.env.PORT || 3001;
 server.listen(PORT, () => {
     console.log(`Service running on port ${PORT}`);
-    setTimeout(initializeWhatsApp, 5000);
+    setTimeout(initializeWhatsApp, 2000);
 });
