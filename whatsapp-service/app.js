@@ -161,7 +161,8 @@ app.post('/send', upload.single('media'), async (req, res) => {
 
     const { to, message } = req.body;
     try {
-        let jid = to.replace(/[^0-9]/g, '');
+        const toStr = String(to);
+        let jid = toStr.replace(/[^0-9]/g, '');
         if (jid.length === 10) jid = '91' + jid;
         jid += '@s.whatsapp.net';
 
