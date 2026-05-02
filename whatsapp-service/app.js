@@ -109,6 +109,11 @@ const initializeWhatsApp = async () => {
             }
         });
 
+        // WhatsApp requires acknowledging incoming events to keep connection alive
+        sock.ev.on('messages.upsert', async (m) => {
+            console.log(JSON.stringify(m, undefined, 2));
+        });
+
     } catch (err) {
         console.error('[CRITICAL] Init Error:', err.message);
         isInitializing = false;
@@ -182,6 +187,18 @@ app.post('/send', upload.single('media'), async (req, res) => {
         res.json({ success: true });
     } catch (err) {
         console.error(`[SEND ERROR] ${to}:`, err.message);
+        
+        // If Baileys throws Not Connected, the socket is dead. Force reset.
+        if (err.message === 'Not connected') {
+            updateStatus('disconnected', 'Connection Dropped by WhatsApp');
+            if (sock) {
+                sock.end();
+                sock = null;
+            }
+            isInitializing = false;
+            setTimeout(initializeWhatsApp, 2000);
+        }
+        
         res.status(500).json({ error: err.message });
     }
 });
