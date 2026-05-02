@@ -44,7 +44,7 @@ const updateStatus = (status, step = '', error = null) => {
 };
 
 const initializeWhatsApp = async () => {
-    const { default: makeWASocket, useMultiFileAuthState, DisconnectReason, fetchLatestBaileysVersion } = require('@whiskeysockets/baileys');
+    const { default: makeWASocket, useMultiFileAuthState, DisconnectReason, fetchLatestBaileysVersion, Browsers } = require('@whiskeysockets/baileys');
     const qrcode = require('qrcode');
     const pino = require('pino');
 
@@ -61,12 +61,12 @@ const initializeWhatsApp = async () => {
             version,
             printQRInTerminal: false,
             auth: state,
-            logger: pino({ level: 'silent' }), // Totally silent for speed
-            browser: ["macOS", "Chrome", "121.0.0.0"],
-            connectTimeoutMs: 30000,
-            keepAliveIntervalMs: 15000,
-            generateHighQualityLinkPreview: false,
-            syncFullHistory: false
+            logger: pino({ level: 'error' }), // Enable error logs to see why it drops
+            browser: Browsers.ubuntu('Desktop'), // Native safe identity
+            connectTimeoutMs: 60000,
+            keepAliveIntervalMs: 25000,
+            emitOwnEvents: true,
+            markOnlineOnConnect: true
         });
 
         sock.ev.on('creds.update', saveCreds);
@@ -156,7 +156,8 @@ app.post('/reset-session', (req, res) => {
 
 app.post('/send', upload.single('media'), async (req, res) => {
     if (!sock || connectionStatus !== 'connected') {
-        return res.status(400).json({ error: 'WhatsApp not connected. Please scan QR.' });
+        console.error(`[SEND ERROR] Rejected because WhatsApp is not connected. Status: ${connectionStatus}`);
+        return res.status(400).json({ error: 'WhatsApp not connected. Please scan QR or wait for reconnection.' });
     }
 
     const { to, message } = req.body;
