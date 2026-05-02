@@ -221,6 +221,24 @@ app.post('/send', upload.single('media'), async (req, res) => {
     }
 });
 
+app.post('/disconnect', (req, res) => {
+    console.log('[API] Disconnect Requested');
+    if (sock) {
+        sock.logout('Client requested disconnect');
+        sock.end();
+        sock = null;
+    }
+    // Delete authentication files so next time it generates a new QR code
+    if (fs.existsSync('./auth_info')) {
+        fs.rmSync('./auth_info', { recursive: true, force: true });
+    }
+    updateStatus('disconnected', 'Disconnected by user');
+    qrCodeData = null;
+    clientUser = null;
+    isInitializing = false;
+    res.json({ success: true, message: 'Successfully disconnected and wiped session' });
+});
+
 app.get('/', (req, res) => {
     res.send(`
         <html>
