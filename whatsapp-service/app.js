@@ -13,7 +13,21 @@ const path = require('path');
 const axios = require('axios');
 
 const app = express();
-const server = http.createServer(app);
+const http = require('http');
+const { Server } = require('socket.io');
+
+// Log capture system for debugging Render
+const recentLogs = [];
+const captureLog = (type, ...args) => {
+    const msg = args.map(a => typeof a === 'object' ? JSON.stringify(a) : a).join(' ');
+    recentLogs.push(`[${new Date().toISOString()}] [${type}] ${msg}`);
+    if (recentLogs.length > 50) recentLogs.shift();
+};
+const origLog = console.log;
+const origErr = console.error;
+console.log = (...args) => { origLog(...args); captureLog('INFO', ...args); };
+console.error = (...args) => { origErr(...args); captureLog('ERROR', ...args); };
+
 const io = new Server(server, {
     cors: {
         origin: ['https://smssecure.in', 'https://www.smssecure.in', 'http://localhost:5173'],
@@ -135,6 +149,11 @@ app.get('/status', (req, res) => {
         timestamp: new Date().toISOString()
     });
 });
+
+app.get('/logs', (req, res) => {
+    res.json({ logs: recentLogs });
+});
+
 
 app.post('/initialize', (req, res) => {
     console.log('[API] Manual Initialization Requested');
