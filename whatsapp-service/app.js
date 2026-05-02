@@ -25,7 +25,7 @@ const io = new Server(server, {
 app.use(cors());
 app.use(express.json());
 
-const upload = multer({ dest: 'uploads/' });
+const upload = multer({ storage: multer.memoryStorage() });
 
 let sock = null;
 let qrCodeData = null;
