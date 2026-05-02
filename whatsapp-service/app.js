@@ -13,8 +13,7 @@ const path = require('path');
 const axios = require('axios');
 
 const app = express();
-const http = require('http');
-const { Server } = require('socket.io');
+const server = http.createServer(app);
 
 // Log capture system for debugging Render
 const recentLogs = [];
